@@ -2,14 +2,33 @@ incomes = []
 expenses = []
 
 def add_income():
-    amount = float(input("Enter income amount: "))
-    incomes.append(amount)
-    print("Income added successfully!")
+    try:
+        amount = float(input("Enter income amount:"))
+    
+        if amount <= 0:
+            print("Amount must be greater than 0")
+
+        else:
+            incomes.append(amount)
+            print("Income added successfully!")
+
+    except ValueError:
+        print("Please enter number only")
+        
 
 def add_expense():
-    amount = float(input("Enter expense amount :"))
-    expenses.append(amount)
-    print("Expense added successfully!")
+    try:
+        amount = float(input("Enter expense amount:"))
+    
+        if amount <= 0:
+            print("Amount must be greater than 0")
+
+        else:
+            expenses.append(amount)
+            print("Expense added successfully!")
+
+    except ValueError:
+        print("Please enter number only")
 
 def show_transactions():
     if not incomes:
@@ -34,9 +53,51 @@ def show_balance():
     print("Total Expense: ", f"{total_expense:.2f}")
     print("Balance: ", f"{balance:.2f}")
 
+def delete_income():
+    if not incomes:
+        print("No income records to delete")
+        return
+
+    print("\n=====Income Records=====")
+    for index, income in enumerate(incomes):
+        print(index, income)
+
+    try:
+        index_to_delete = int(input("Enter index of income to delete: "))
+    
+        if 0 <= index_to_delete < len(incomes):
+            del incomes[index_to_delete]
+            print("Income record deleted successfully!")
+        else:
+            print("Invalid index. Please try again.")
+
+    except ValueError:
+        print("Please enter number only")
+
+def delete_expense():
+    if not expenses:
+        print("No expense records to delete")
+        return
+    
+    print("\n=====Expense Records=====")
+    for index, expense in enumerate(expenses):
+        print(index, expense)
+
+    try:
+        index_to_delete = int(input("Enter index of expense to delete: "))
+    
+        if 0 <= index_to_delete < len(expenses):
+            del expenses[index_to_delete]
+            print("Expense record deleted successfully!")
+        else:
+            print("Invalid index. Please try again.")
+
+    except ValueError:
+        print("Please enter number only")
+
 choice = 0
 
-while choice != 5:
+while choice != 7:
     print("===========================")
     print("      EXPENSE TRACKER")
     print("===========================")
@@ -45,7 +106,9 @@ while choice != 5:
     print("2. Add Expense")
     print("3. Show Transactions")
     print("4. Show Balance")
-    print("5. Exit")
+    print("5. Delete Income")
+    print("6. Delete Expense")
+    print("7. Exit")
 
     choice = int(input("Choose menu: "))
 
@@ -62,7 +125,12 @@ while choice != 5:
         show_balance()
     #------------------------------------------------
     elif choice == 5:
-        print("Goodbye!")
+        delete_income()
     #------------------------------------------------
+    elif choice == 6: #ลบรายจ่าย
+        delete_expense()
+    #------------------------------------------------
+    elif choice == 7: #ออกจากโปรแกรม
+        print("Exit program")
     else:
         print("Invalid menu")
