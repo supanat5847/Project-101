@@ -1,24 +1,61 @@
 import sqlite3
+from datetime import datetime
 
-conn = sqlite3.connect('expense.db')
-cursor = conn.cursor()
+# =========================
+# DATABASE CONNECTION
+# =========================
 
-#สร้างตาราง incomes 
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS incomes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        amount REAL NOT NULL
-    )
-""")
-#สร้างตาราง expenses
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        amount REAL NOT NULL
-    )
-""")
+def init_database():
+    conn = sqlite3.connect('expense.db')
+    cursor = conn.cursor()
 
-conn.commit()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            amount REAL NOT NULL,
+            type TEXT NOT NULL,
+            date TEXT NOT NULL,
+            description TEXT,
+            category TEXT
+        )
+    """)
+
+    conn.commit()
+
+    return conn, cursor
+
+def add_transaction(conn, cursor, transaction_type):
+    print("===== Add Transaction =====")
+
+    amount = get_amount()
+
+    if amount is None:
+        return
+
+    date = get_date()
+
+    if date is None:
+        return 
+
+    description = get_text("Enter description: ")
+
+    if description is None:
+        return
+
+    category = get_text("Enter category: ")
+
+    if category is None:
+        return
+
+    cursor.execute("""
+        INSERT INTO transactions
+        (amount, type, date, description, category)
+        VALUES (?, ?, ?, ?, ?)
+    """, (amount, transaction_type, date, description, category))
+
+    conn.commit()
+
+    print("Transaction added successfully!")
 
 def get_amount():
     try:
@@ -34,264 +71,251 @@ def get_amount():
         print("Please enter number only")
         return None
 
-def add_income():
-    amount = get_amount()
+def get_date():
+    date = input("Enter date (YYYY-MM-DD): ")
 
-    if amount is None:
+    try:
+        datetime.strptime(date, "%Y-%m-%d")
+        return date
+
+    except ValueError:
+        print("Invalid date. Please use YYYY-MM-DD")
+        return None
+
+def get_text(prompt):
+    text = input(prompt).strip()
+
+    if text == "":
+        print("This field cannot be empty")
+        return None
+
+    return text
+
+def show_transactions(conn, cursor):
+
+    cursor.execute("""
+        SELECT id, amount, type, date, description, category
+        FROM transactions
+        ORDER BY date DESC, id DESC
+    """)
+
+    transactions = cursor.fetchall()
+
+    if not transactions:
+        print("No transaction records")
         return
 
-    cursor.execute(
-        "INSERT INTO incomes (amount) VALUES (?)",
-        (amount,)
-    )
+    print("\n===== All Transactions =====")
 
-    conn.commit()
-    print("Income added successfully!")
-        
+    for transaction in transactions:
+        print("--------------------------------")
+        print(f"ID: {transaction[0]}")
+        print(f"Amount: {transaction[1]:.2f}")
+        print(f"Type: {transaction[2]}")
+        print(f"Date: {transaction[3]}")
+        print(f"Description: {transaction[4]}")
+        print(f"Category: {transaction[5]}")
 
-def add_expense():
-    amount = get_amount()
+    print("--------------------------------")
 
-    if amount is None:
-        return
 
-    cursor.execute(
-        "INSERT INTO expenses (amount) VALUES (?)",
-        (amount,)
-    )
+def show_balance(conn, cursor):
 
-    conn.commit()
-    print("Expense added successfully!")
-
-def show_transactions():
-
-    # ดึงข้อมูลรายรับ
-    cursor.execute("SELECT id, amount FROM incomes")
-    incomes = cursor.fetchall()
-
-    # ดึงข้อมูลรายจ่าย
-    cursor.execute("SELECT id, amount FROM expenses")
-    expenses = cursor.fetchall()
-
-    print("\n===== Income Records =====")
-    if not incomes:
-        print("No income records")
-    else:
-        for income in incomes:
-            print(f"ID: {income[0]}, Amount: {income[1]}")
-
-    print("\n===== Expense Records =====")
-    if not expenses:
-        print("No expense records")
-    else:
-        for expense in expenses:
-            print(f"ID: {expense[0]}, Amount: {expense[1]}")
-
-def show_balance():
-
-    # คำนวณรายรับทั้งหมด
-    cursor.execute("SELECT SUM(amount) FROM incomes")
+    cursor.execute("""
+        SELECT SUM(amount)
+        FROM transactions
+        WHERE type = 'income'
+    """)
     total_income = cursor.fetchone()[0] or 0
 
-    # คำนวณรายจ่ายทั้งหมด
-    cursor.execute("SELECT SUM(amount) FROM expenses")
+    cursor.execute("""
+        SELECT SUM(amount)
+        FROM transactions
+        WHERE type = 'expense'
+    """)
     total_expense = cursor.fetchone()[0] or 0
 
     balance = total_income - total_expense
 
     print("\n===== Balance Summary =====")
-    print("Total Income: ", f"{total_income:.2f}")
-    print("Total Expense: ", f"{total_expense:.2f}")
-    print("Balance: ", f"{balance:.2f}")
+    print(f"Total Income: {total_income:.2f}")
+    print(f"Total Expense: {total_expense:.2f}")
+    print(f"Balance: {balance:.2f}")
 
-def delete_income():
 
-    cursor.execute("SELECT id, amount FROM incomes")
-    incomes = cursor.fetchall()
 
-    if not incomes:
-        print("No income records to delete")
+def delete_transaction(conn, cursor):
+
+    cursor.execute("""
+        SELECT id, amount, type, date, description
+        FROM transactions
+        ORDER BY id DESC
+    """)
+
+    transactions = cursor.fetchall()
+
+    if not transactions:
+        print("No transaction records to delete")
         return
 
-    print("\n===== Income Records =====")
+    print("\n===== Transaction Records =====")
 
-    for income in incomes:
-        print(f"ID: {income[0]}, Amount: {income[1]}")
+    for transaction in transactions:
+        print(
+            f"ID: {transaction[0]}, "
+            f"Amount: {transaction[1]}, "
+            f"Type: {transaction[2]}, "
+            f"Date: {transaction[3]}, "
+            f"Description: {transaction[4]}"
+        )
 
     try:
-        id_to_delete = int(input("Enter ID of income to delete: "))
+        id_to_delete = int(input("Enter ID to delete: "))
 
         cursor.execute(
-            "DELETE FROM incomes WHERE id = ?",
+            "DELETE FROM transactions WHERE id = ?",
             (id_to_delete,)
         )
 
         conn.commit()
 
         if cursor.rowcount > 0:
-            print("Income record deleted successfully!")
+            print("Transaction deleted successfully!")
         else:
             print("Invalid ID")
 
     except ValueError:
         print("Please enter number only")
 
-def delete_expense():
-    cursor.execute("SELECT id, amount FROM expenses")
-    expenses = cursor.fetchall()
 
-    if not expenses:
-        print("No expense records to delete")
+def update_transaction(conn, cursor):
+
+    cursor.execute("""
+        SELECT id, amount, type, date, description, category
+        FROM transactions
+        ORDER BY id DESC
+    """)
+
+    transactions = cursor.fetchall()
+
+    if not transactions:
+        print("No transaction records to update")
         return
 
-    print("\n===== Expense Records =====")
+    print("\n===== Transaction Records =====")
 
-    for expense in expenses:
-        print(f"ID: {expense[0]}, Amount: {expense[1]}")
-
-    try:
-        id_to_delete = int(input("Enter ID of expense to delete: "))
-
-        cursor.execute(
-            "DELETE FROM expenses WHERE id = ?",
-            (id_to_delete,)
+    for transaction in transactions:
+        print(
+            f"ID: {transaction[0]}, "
+            f"Amount: {transaction[1]}, "
+            f"Type: {transaction[2]}, "
+            f"Date: {transaction[3]}, "
+            f"Description: {transaction[4]}, "
+            f"Category: {transaction[5]}"
         )
 
-        conn.commit()
-
-        if cursor.rowcount > 0:
-            print("Expense record deleted successfully!")
-        else:
-            print("Invalid ID")
-
-    except ValueError:
-        print("Please enter number only")
-
-def update_income():
-
-    cursor.execute("SELECT id, amount FROM incomes")
-    incomes = cursor.fetchall()
-
-    if not incomes:
-        print("No income records to update")
-        return
-
-    print("\n===== Income Records =====")
-
-    for income in incomes:
-        print(f"ID: {income[0]}, Amount: {income[1]}")
-
     try:
-        id_to_update = int(input("Enter ID of income to update: "))
-        new_amount = float(input("Enter new amount: "))
+        id_to_update = int(input("Enter ID to update: "))
 
-        if new_amount <= 0:
-            print("Amount must be greater than 0")
+        cursor.execute(
+            "SELECT id FROM transactions WHERE id = ?",
+            (id_to_update,)
+        )
+
+        if cursor.fetchone() is None:
+            print("Invalid ID")
             return
 
-        cursor.execute(
-            "UPDATE incomes SET amount = ? WHERE id = ?",
-            (new_amount, id_to_update)
-        )
+        new_amount = get_amount()
 
-        conn.commit()
-
-        if cursor.rowcount > 0:
-            print("Income updated successfully!")
-        else:
-            print("Invalid ID")
-
-    except ValueError:
-        print("Please enter number only")
-
-def update_expense():
-
-    cursor.execute("SELECT id, amount FROM expenses")
-    expenses = cursor.fetchall()
-
-    if not expenses:
-        print("No expense records to update")
-        return
-
-    print("\n===== Expense Records =====")
-
-    for expense in expenses:
-        print(f"ID: {expense[0]}, Amount: {expense[1]}")
-
-    try:
-        id_to_update = int(input("Enter ID of expense to update: "))
-        new_amount = float(input("Enter new amount: "))
-
-        if new_amount <= 0:
-            print("Amount must be greater than 0")
+        if new_amount is None:
             return
 
-        cursor.execute(
-            "UPDATE expenses SET amount = ? WHERE id = ?",
-            (new_amount, id_to_update)
-        )
+        new_date = get_date()
+
+        if new_date is None:
+            return
+            
+        new_description = get_text("Enter new description: ")
+
+        if new_description is None:
+            return
+
+        new_category = get_text("Enter new category: ")
+        if new_category is None:
+            return
+
+        cursor.execute("""
+            UPDATE transactions
+            SET amount = ?, date = ?, description = ?, category = ?
+            WHERE id = ?
+        """, (
+            new_amount,
+            new_date,
+            new_description,
+            new_category,
+            id_to_update
+        ))
 
         conn.commit()
 
-        if cursor.rowcount > 0:
-            print("Expense updated successfully!")
-        else:
-            print("Invalid ID")
+        print("Transaction updated successfully!")
 
     except ValueError:
         print("Please enter number only")
 
-choice = 0
-
-while choice != 9:
-    print("===========================")
-    print("      EXPENSE TRACKER")
-    print("===========================")
-
-    print("1. Add Income")
-    print("2. Add Expense")
-    print("3. Show Transactions")
-    print("4. Show Balance")
-    print("5. Delete Income")
-    print("6. Delete Expense")
-    print("7. Update Income")
-    print("8. Update Expense")
-    print("9. Exit")
+def main():
+    conn, cursor = init_database()
 
     try:
-        choice = int(input("Choose menu: "))
-    except ValueError:
-        print("Please enter number only")
-        continue
+        choice = 0
 
-    if choice == 1: #เพิ่มรายรับ
-        add_income()
-    #------------------------------------------------
-    elif choice == 2: #เพิ่มรายจ่าย
-        add_expense()
-    #------------------------------------------------
-    elif choice == 3: #แสดงรายการธ list
-        show_transactions()
-    #------------------------------------------------
-    elif choice == 4: #แสดงยอดคงเหลือ
-        show_balance()
-    #------------------------------------------------
-    elif choice == 5:
-        delete_income()
-    #------------------------------------------------
-    elif choice == 6: #ลบรายจ่าย
-        delete_expense()
-    #------------------------------------------------
-    elif choice == 7: #อัพเดตรายรับ
-        update_income()
-    #------------------------------------------------
-    elif choice == 8: #อัพเดตรายจ่าย
-        update_expense()
-    #------------------------------------------------
-    elif choice == 9: #ออกจากโปรแกรม
-        print("Goodbye!")
-    else:
-        print("Invalid menu")
+        while choice != 7:
+            print("===========================")
+            print("      EXPENSE TRACKER")
+            print("===========================")
 
-conn.close()
-print("Database connection closed.")
+            print("1. Add Income")
+            print("2. Add Expense")
+            print("3. Show Transactions")
+            print("4. Show Balance")
+            print("5. Delete Transaction")
+            print("6. Update Transaction")
+            print("7. Exit")
+
+            try:
+                choice = int(input("Choose menu: "))
+            except ValueError:
+                print("Please enter number only")
+                continue
+
+            if choice == 1:
+                add_transaction(conn, cursor, 'income')
+
+            elif choice == 2:
+                add_transaction(conn, cursor, 'expense')
+
+            elif choice == 3:
+                show_transactions(conn, cursor)
+
+            elif choice == 4:
+                show_balance(conn, cursor)
+
+            elif choice == 5:
+                delete_transaction(conn, cursor)
+
+            elif choice == 6:
+                update_transaction(conn, cursor)
+
+            elif choice == 7:
+                print("Goodbye!")
+
+            else:
+                print("Invalid menu")
+
+    finally:
+        conn.close()
+        print("Database connection closed.")
+
+if __name__ == "__main__":
+    main()
