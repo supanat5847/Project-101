@@ -20,43 +20,48 @@ cursor.execute("""
 
 conn.commit()
 
-def add_income():
+def get_amount():
     try:
-        amount = float(input("Enter income amount:"))
+        amount = float(input("Enter amount:"))
     
         if amount <= 0:
             print("Amount must be greater than 0")
-
-        else:
-           cursor.execute(
-                "INSERT INTO incomes (amount) VALUES (?)", 
-                (amount,)
-           )
-
-           conn.commit()
-           print("Income added successfully!")
+            return None
+        
+        return amount
 
     except ValueError:
         print("Please enter number only")
+        return None
+
+def add_income():
+    amount = get_amount()
+
+    if amount is None:
+        return
+
+    cursor.execute(
+        "INSERT INTO incomes (amount) VALUES (?)",
+        (amount,)
+    )
+
+    conn.commit()
+    print("Income added successfully!")
         
 
 def add_expense():
-    try:
-        amount = float(input("Enter expense amount:"))
-    
-        if amount <= 0:
-            print("Amount must be greater than 0")
+    amount = get_amount()
 
-        else:
-            cursor.execute(
-                "INSERT INTO expenses (amount) VALUES (?)",
-                (amount,)
-            )
-            conn.commit()
-            print("Expense added successfully!")
+    if amount is None:
+        return
 
-    except ValueError:
-        print("Please enter number only")
+    cursor.execute(
+        "INSERT INTO expenses (amount) VALUES (?)",
+        (amount,)
+    )
+
+    conn.commit()
+    print("Expense added successfully!")
 
 def show_transactions():
 
